@@ -1,14 +1,12 @@
 const express = require("express");
 const axios = require("axios");
 const dotenv = require("dotenv");
-const cors = require("cors"); // ✅ Import CORS
+const cors = require("cors"); // ✅ Import cors
 
 dotenv.config();
-
 const app = express();
 
-// ✅ Enable CORS for all origins (can be restricted later)
-app.use(cors());
+app.use(cors()); // ✅ Enable CORS for all routes
 
 const getAccessToken = async () => {
   const { CLIENT_ID, CLIENT_SECRET, REFRESH_TOKEN } = process.env;
@@ -33,25 +31,22 @@ const getAccessToken = async () => {
 app.get("/now-playing", async (req, res) => {
   try {
     const accessToken = await getAccessToken();
-    const result = await axios.get(
-      "https://api.spotify.com/v1/me/player/currently-playing",
-      {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-      }
-    );
+    const result = await axios.get("https://api.spotify.com/v1/me/player/currently-playing", {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
 
     if (result.status === 204 || result.data === "") {
       return res.json({ isPlaying: false });
     }
 
     const song = {
-      isPlaying: result.data.is_playing,
+      is_playing: result.data.is_playing,
       title: result.data.item.name,
       artist: result.data.item.artists.map((a) => a.name).join(", "),
-      albumImageUrl: result.data.item.album.images[0].url,
-      songUrl: result.data.item.external_urls.spotify,
+      album_image_url: result.data.item.album.images[0].url,
+      song_url: result.data.item.external_urls.spotify,
     };
 
     res.json(song);
@@ -63,3 +58,4 @@ app.get("/now-playing", async (req, res) => {
 
 const PORT = process.env.PORT || 8888;
 app.listen(PORT, () => console.log(`Server is running on port ${PORT}`));
+
