@@ -45,16 +45,22 @@ app.listen(PORT, () => console.log(`Listening on port ${PORT}`));
 async function getAccessToken() {
   const basic = Buffer.from(`${process.env.SPOTIFY_CLIENT_ID}:${process.env.SPOTIFY_CLIENT_SECRET}`).toString("base64");
 
-  const response = await axios.post("https://accounts.spotify.com/api/token", new URLSearchParams({
-    grant_type: "refresh_token",
-    refresh_token: process.env.SPOTIFY_REFRESH_TOKEN,
-  }), {
-    headers: {
-      Authorization: `Basic ${basic}`,
-      "Content-Type": "application/x-www-form-urlencoded",
-    },
-  });
+  try {
+    const response = await axios.post("https://accounts.spotify.com/api/token", new URLSearchParams({
+      grant_type: "refresh_token",
+      refresh_token: process.env.SPOTIFY_REFRESH_TOKEN,
+    }), {
+      headers: {
+        Authorization: `Basic ${basic}`,
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+    });
 
-  return response.data.access_token;
+    console.log("✅ Access token refreshed successfully");
+    return response.data.access_token;
+  } catch (err) {
+    console.error("❌ Error refreshing token:", err.response?.data || err.message);
+    throw err;
+  }
 }
 
