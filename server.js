@@ -1,62 +1,60 @@
 const express = require("express");
 const axios = require("axios");
-const dotenv = require("dotenv");
-const cors = require("cors"); // ✅ Import cors
+const cors = require("cors");
+require("dotenv").config();
 
-dotenv.config();
 const app = express();
+app.use(cors());
 
-app.use(cors()); // ✅ Enable CORS for all routes
-
-const getAccessToken = async () => {
-  const { CLIENT_ID, CLIENT_SECRET, REFRESH_TOKEN } = process.env;
-  const response = await axios.post(
-    "https://accounts.spotify.com/api/token",
-    new URLSearchParams({
-      grant_type: "refresh_token",
-      refresh_token: REFRESH_TOKEN,
-    }),
-    {
-      headers: {
-        Authorization:
-          "Basic " +
-          Buffer.from(`${CLIENT_ID}:${CLIENT_SECRET}`).toString("base64"),
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
-    }
-  );
-  return response.data.access_token;
-};
+const PORT = process.env.PORT || 3000;
 
 app.get("/now-playing", async (req, res) => {
   try {
-    const accessToken = await getAccessToken();
-    const result = await axios.get("https://api.spotify.com/v1/me/player/currently-playing", {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
+    const token = await getAccessToken(); // we'll handle refresh too
+    const response = await axios.get("https://api.spotify.com/v1/me/player/currently-playing", {
+      headers: { Authorization: `Bearer ${token}` },
     });
 
-    if (result.status === 204 || result.data === "") {
-      return res.json({ isPlaying: false });
+    if (response.status === 204 || response.data === "") {
+      return res.status(200).json({ isPlaying: false });
     }
 
+    const { item, is_playing, progress_ms } = response.data;
+
     const song = {
-      is_playing: result.data.is_playing,
-      title: result.data.item.name,
-      artist: result.data.item.artists.map((a) => a.name).join(", "),
-      album_image_url: result.data.item.album.images[0].url,
-      song_url: result.data.item.external_urls.spotify,
+      isPlaying: is_playing,
+      title: item.name,
+      artist: item.artists.map((artist) => artist.name).join(", "),
+      album: item.album.name,
+      albumImageUrl: item.album.images[0].url,
+      songUrl: item.external_urls.spotify,
+      progress: progress_ms,
+      duration: item.duration_ms,
     };
 
-    res.json(song);
-  } catch (e) {
-    console.error(e.response?.data || e.message);
-    res.status(500).json({ error: "Could not fetch song data." });
+    return res.status(200).json(song);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Failed to fetch now playing" });
   }
 });
 
-const PORT = process.env.PORT || 8888;
-app.listen(PORT, () => console.log(`Server is running on port ${PORT}`));
+app.listen(PORT, () => console.log(`Listening on port ${PORT}`));
 
+// Token Refresh
+async function getAccessToken() {
+  const basic = Buffer.from(`${process.env.SPOTIFY_CLIENT_ID}:${process.env.SPOTIFY_CLIENT_SECRET}`).toString("base64");
+
+  const response = await axios.post("https://accounts.spotify.com/api/token", new URLSearchParams({
+    grant_type: "refresh_token",
+    refresh_token: process.env.SPOTIFY_REFRESH_TOKEN,
+  }), {
+    headers: {
+      Authorization: `Basic ${basic}`,
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+  });
+
+  return response.data.access_token;
+}
 
