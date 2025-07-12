@@ -1,0 +1,6 @@
+{
+  "version": 2,
+  "builds": [{ "src": "api/now-playing.js", "use": "@vercel/node" }],
+  "routes": [{ "src": "/now-playing", "dest": "/api/now-playing.js" }]
+}
+
